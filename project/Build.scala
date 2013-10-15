@@ -244,8 +244,8 @@ object SummingbirdBuild extends Build {
   lazy val summingbirdExample = module("example").settings(
     libraryDependencies ++= Seq(
       "com.twitter" %% "bijection-netty" % bijectionVersion,
-      "com.twitter" %% "tormenta-twitter" % tormentaVersion exclude("org.slf4j", "log4j-over-slf4j") exclude("ch.qos.logback", "logback-classic"),
-      "com.twitter" %% "storehaus-memcache" % storehausVersion
+      "com.twitter" %% "tormenta-kafka" % tormentaVersion exclude("org.slf4j", "log4j-over-slf4j") exclude("ch.qos.logback", "logback-classic"),
+      "com.twitter" %% "storehaus-mysql" % storehausVersion
     )
   ).dependsOn(summingbirdCore, summingbirdStorm)
 }

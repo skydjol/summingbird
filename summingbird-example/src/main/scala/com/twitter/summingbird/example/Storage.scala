@@ -17,63 +17,51 @@
 package com.twitter.summingbird.example
 
 import com.twitter.algebird.Monoid
-import com.twitter.bijection.{Base64String, Bijection, Codec, Injection}
+import com.twitter.bijection._
 import com.twitter.bijection.netty.Implicits._
 import com.twitter.conversions.time._
-import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle.memcached.KetamaClientBuilder
-import com.twitter.finagle.memcached.protocol.text.Memcached
 import com.twitter.storehaus.Store
 import com.twitter.storehaus.algebra.MergeableStore
-import com.twitter.storehaus.memcache.{HashEncoder, MemcacheStore}
 import com.twitter.summingbird.batch.BatchID
-import org.jboss.netty.buffer.ChannelBuffer
+import org.jboss.netty.buffer.{ChannelBuffers, ChannelBuffer}
+import com.twitter.finagle.exp.mysql.{ Client}
+import com.twitter.storehaus.mysql._
 
-/**
-  * TODO: Delete when https://github.com/twitter/storehaus/pull/121 is
-  * merged into Storehaus and Storehaus sees its next release. This
-  * pull req will make it easier to create Memcache store instances.
-  */
-object Memcache {
+
+import com.twitter.bijection.{ Injection }
+import scala.util.Try
+import org.jboss.netty.util.CharsetUtil._
+import com.twitter.finagle.exp.mysql.RawStringValue
+import scala.Array
+
+
+
+object Mysql {
   val DEFAULT_TIMEOUT = 1.seconds
 
-  def client = {
-    val builder = ClientBuilder()
-      .name("memcached")
-      .retries(2)
-      .tcpConnectTimeout(DEFAULT_TIMEOUT)
-      .requestTimeout(DEFAULT_TIMEOUT)
-      .connectTimeout(DEFAULT_TIMEOUT)
-      .readerIdleTimeout(DEFAULT_TIMEOUT)
-      .hostConnectionLimit(1)
-      .codec(Memcached())
-
-    KetamaClientBuilder()
-      .clientBuilder(builder)
-      .nodes("localhost:11211")
-      .build()
-  }
+  def client = Client("localhost:3306", "root", "root", "storehaus_test")
 
   /**
-   * Returns a function that encodes a key to a Memcache key string
+   * Returns a function that encodes a key to a Mysql key string
    * given a unique namespace string.
    */
   def keyEncoder[T](namespace: String)
-    (implicit inj: Codec[T]): T => String = { key: T =>
-    def concat(bytes: Array[Byte]): Array[Byte] =
-      namespace.getBytes ++ bytes
-
-    (inj.andThen(concat _)
-      .andThen(HashEncoder())
-      .andThen(Bijection.connect[Array[Byte], Base64String]))(key).str
+                   (implicit inj: Codec[T]): T =>   MySqlValue  = { key: T =>
+    MySqlValue(namespace)
   }
 
   def store[K: Codec, V: Codec](keyPrefix: String): Store[K, V] = {
-    implicit val valueToBuf = Injection.connect[V, Array[Byte], ChannelBuffer]
-    MemcacheStore(client)
-      .convert(keyEncoder[K](keyPrefix))
+    implicit val mysqlbig = MySqlCbInjection2
+    implicit val valueToBuf =  Injection.connect[V,  Array[Byte], ChannelBuffer, MySqlValue]
+    MySqlStore(client, "storehaus-mysql-test", "key", "value").convert(keyEncoder[K](keyPrefix))
   }
 
   def mergeable[K: Codec, V: Codec: Monoid](keyPrefix: String): MergeableStore[K, V] =
     MergeableStore.fromStore(store[K, V](keyPrefix))
 }
+
+object MySqlCbInjection2 extends Injection[ChannelBuffer,MySqlValue] {
+  def apply(a: ChannelBuffer): MySqlValue = MySqlValue(RawStringValue(a.toString(UTF_8)))
+  override def invert(b: MySqlValue) = Try(ValueMapper.toChannelBuffer(b.v).getOrElse(ChannelBuffers.EMPTY_BUFFER))
+}
+

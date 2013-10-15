@@ -18,10 +18,9 @@ package com.twitter.summingbird.example
 
 import com.twitter.summingbird.batch.BatchID
 import com.twitter.summingbird.storm.{ StormStore, Storm }
-import com.twitter.tormenta.spout.TwitterSpout
+import com.twitter.tormenta.spout.KafkaSpout
 import com.twitter.util.Await
-import twitter4j.TwitterStreamFactory
-import twitter4j.conf.ConfigurationBuilder
+import com.twitter.tormenta.scheme.Scheme
 
 /**
   * The following object contains code to execute the Summingbird
@@ -78,7 +77,7 @@ object StormRunner {
     * First, the backing store:
     */
   lazy val stringLongStore =
-    Memcache.mergeable[(String, BatchID), Long]("urlCount")
+  Mysql.mergeable[(String, BatchID), Long]("urlCount")
 
   /**
     * the param to store is by name, so this is still not created created

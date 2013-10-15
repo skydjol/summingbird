@@ -18,8 +18,6 @@ package com.twitter.summingbird.example
 
 import com.twitter.bijection.{ Bufferable, Codec, Injection }
 import com.twitter.summingbird.batch.BatchID
-import twitter4j.Status
-import twitter4j.json.DataObjectFactory
 
 /**
   * Serialization is often the most important (and hairy)
@@ -35,24 +33,6 @@ import twitter4j.json.DataObjectFactory
   */
 
 object Serialization {
-  /**
-    * This Injection converts the twitter4j.Status objects that Storm
-    * and Scalding will process into Strings.
-    */
-  implicit val statusCodec: Injection[Status, String] =
-    Injection.buildCatchInvert[Status, String](DataObjectFactory.getRawJSON(_))(
-      json => DataObjectFactory.createStatus(json)
-    )
-
-  /**
-    * We can chain the Status <-> String injection above with the
-    * library-supplied String <-> Array[Byte] injection to generate a
-    * full-on serializer for Status objects of the type
-    * Injection[Status, Array[Byte]]. Our Storm and Scalding sources
-    * can now pull in this injection using Scala's implicit resolution
-    * and properly register the serializer.
-    */
-  implicit val toBytes = Injection.connect[Status, String, Array[Byte]]
 
   /**
     * Summingbird's implementation of the batch/realtime merge

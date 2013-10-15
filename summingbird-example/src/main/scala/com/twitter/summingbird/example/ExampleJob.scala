@@ -19,9 +19,7 @@ package com.twitter.summingbird.example
 import com.twitter.summingbird._
 import com.twitter.summingbird.batch.Batcher
 import com.twitter.summingbird.storm.{ MergeableStoreSupplier, Storm }
-import twitter4j.Status
-import twitter4j.TwitterStreamFactory
-import twitter4j.conf.ConfigurationBuilder
+import java.util.Date
 
 object StatusStreamer {
   /**
@@ -29,7 +27,8 @@ object StatusStreamer {
     * batch/realtime mode, across the boundary between storm and
     * scalding jobs.
     */
-  implicit val timeOf: TimeExtractor[Status] = TimeExtractor(_.getCreatedAt.getTime)
+//  implicit val timeOf: TimeExtractor[Status] = TimeExtractor(_.getCreatedAt.getTime)
+  implicit val timeOf: TimeExtractor[String] = TimeExtractor(_ => new Date().getTime)
   implicit val batcher = Batcher.ofHours(1)
 
   def tokenize(text: String) : TraversableOnce[String] =
@@ -43,11 +42,11 @@ object StatusStreamer {
     * in Storm or in Scalding, or in any future platform supported by
     * Summingbird.
     */
-  def wordCount[P <: Platform[P]](
-    source: Producer[P, Status],
-    store: P#Store[String, Long]) =
-    source
-      .filter(_.getText != null)
-      .flatMap { tweet: Status => tokenize(tweet.getText).map(_ -> 1L) }
-      .sumByKey(store)
-}
+    def wordCount[P <: Platform[P]](
+      source: Producer[P, String],
+      store: P#Store[String, Long]) =
+      source
+        .filter(_ != null)
+        .flatMap { line => tokenize(line).map(_ -> 1L)  }
+        .sumByKey(store)
+    }
